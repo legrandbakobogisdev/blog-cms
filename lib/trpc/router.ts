@@ -5,6 +5,7 @@ import { db } from "@/lib/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import type { CreateNextContextOptions } from "@trpc/server/adapters/next";
+import superjson from "superjson";
 
 // ─── Context ────────────────────────────────────────────────────────────────
 export async function createContext(opts: CreateNextContextOptions) {
@@ -14,8 +15,9 @@ export async function createContext(opts: CreateNextContextOptions) {
 
 type Context = Awaited<ReturnType<typeof createContext>>;
 
-const t = initTRPC.context<Context>().create();
-
+const t = initTRPC.context<Context>().create({
+  transformer: superjson,  // ← ajouter ici
+});
 // ─── Middleware ──────────────────────────────────────────────────────────────
 const isAuthed = t.middleware(({ ctx, next }) => {
   if (!ctx.session?.user) {
@@ -122,21 +124,44 @@ const postsRouter = router({
 });
 
 // ─── Comments Router ─────────────────────────────────────────────────────────
-const commentsRouter = router({
+export const commentsRouter = router({
+  list: publicProcedure
+    .input(z.object({ postId: z.string() }))
+    .query(({ ctx, input }) =>
+      ctx.db.comment.findMany({
+        where: { postId: input.postId, parentId: null },
+        include: {
+          author: { select: { id: true, name: true, image: true } },
+          replies: {
+            include: { author: { select: { id: true, name: true, image: true } } },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      })
+    ),
+
   create: protectedProcedure
-    .input(z.object({ postId: z.string(), content: z.string().min(1).max(2000), parentId: z.string().optional() }))
-    .mutation(async ({ ctx, input }) => {
-      return ctx.db.comment.create({
+    .input(z.object({ postId: z.string(), content: z.string().min(1), parentId: z.string().optional() }))
+    .mutation(({ ctx, input }) =>
+      ctx.db.comment.create({
         data: { ...input, authorId: ctx.session.user.id },
-        include: { author: true },
-      });
+        include: { author: { select: { id: true, name: true, image: true } } },
+      })
+    ),
+
+  update: protectedProcedure
+    .input(z.object({ id: z.string(), content: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const comment = await ctx.db.comment.findUniqueOrThrow({ where: { id: input.id } });
+      if (comment.authorId !== ctx.session.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+      return ctx.db.comment.update({ where: { id: input.id }, data: { content: input.content } });
     }),
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const comment = await ctx.db.comment.findUnique({ where: { id: input.id } });
-      if (!comment) throw new TRPCError({ code: "NOT_FOUND" });
+      const comment = await ctx.db.comment.findUniqueOrThrow({ where: { id: input.id } });
       if (comment.authorId !== ctx.session.user.id && ctx.session.user.role !== "ADMIN") {
         throw new TRPCError({ code: "FORBIDDEN" });
       }

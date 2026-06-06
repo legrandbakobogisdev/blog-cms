@@ -1,12 +1,12 @@
 // prisma/schema.prisma
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -15,6 +15,7 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   image         String?
+  password      String?
   role          Role      @default(READER)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
