@@ -1,57 +1,32 @@
 {
-  "version": 2,
-  "framework": "nextjs",
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "env": {
-    "NEXTAUTH_URL": "@nextauth_url",
-    "NEXTAUTH_SECRET": "@nextauth_secret",
-    "DATABASE_URL": "@database_url",
-    "SUPABASE_URL": "@supabase_url",
-    "SUPABASE_ANON_KEY": "@supabase_anon_key"
-  },
-  "git": {
-    "deploymentEnabled": {
-      "main": true
-    }
-  },
-  "functions": {
-    "app/api/**": {
-      "maxDuration": 30
-    }
-  },
-  "headers": [
-    {
-      "source": "/api/:path*",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-store, must-revalidate"
+    "framework": "nextjs",
+    "functions": {
+        "app/api/**": {
+            "maxDuration": 30
         }
-      ]
     },
-    {
-      "source": "/:path*",
-      "headers": [
+    "headers": [
         {
-          "key": "X-Frame-Options",
-          "value": "DENY"
+            "source": "/api/:path*",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "no-store, must-revalidate"
+                }
+            ]
         },
         {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
+            "source": "/:path*",
+            "headers": [
+                {
+                    "key": "X-Frame-Options",
+                    "value": "DENY"
+                },
+                {
+                    "key": "X-Content-Type-Options",
+                    "value": "nosniff"
+                }
+            ]
         }
-      ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/:path*",
-      "destination": "/:path*"
-    }
-  ]
+    ]
 }
